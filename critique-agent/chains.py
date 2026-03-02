@@ -3,8 +3,8 @@ from typing import List
 
 from langchain_openai import ChatOpenAI
 
-from .config import Settings
-from .prompts import build_generation_prompt, build_reflection_prompt
+from config import Settings
+from prompts import build_generation_prompt, build_reflection_prompt
 
 
 class Critique(BaseModel):

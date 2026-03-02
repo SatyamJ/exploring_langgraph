@@ -1,55 +1,34 @@
-from typing import Annotated
-from typing_extensions import TypedDict
+from langchain_core.messages import HumanMessage
 
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-from langchain_core.messages import BaseMessage, HumanMessage
-from langgraph.graph import END, StateGraph
-from langgraph.graph.message import add_messages
-
-from chains import generation_chain, reflection_chain
-
-class GraphState(TypedDict):
-    messages: Annotated[list[BaseMessage], add_messages]
-
-CRITIQUE = "critique"
-GENERATE = "generate"
-
-def generation_node(state: GraphState):
-    return {
-        "messages": [generation_chain.invoke({"messages": state["messages"]})]
-    }
-
-def critique_node(state: GraphState):
-    res = reflection_chain.invoke({"messages": state["messages"]})
-    return {"messages": [HumanMessage(content=res.content)]}
-
-
-graphBuilder = StateGraph(state_schema=GraphState)
-graphBuilder.add_node(GENERATE, generation_node)
-graphBuilder.add_node(CRITIQUE, critique_node)
-graphBuilder.set_entry_point(GENERATE)
-
-def should_continue(state: GraphState):
-    if len(state["messages"]) > 6:
-        return END
-    return CRITIQUE
-
-graphBuilder.add_conditional_edges(source=GENERATE, path=should_continue, path_map={END: END, CRITIQUE: CRITIQUE})
-graphBuilder.add_edge(CRITIQUE, GENERATE)
-
-graph = graphBuilder.compile()
-print(graph.get_graph().draw_mermaid())
-
+from config import get_settings
+from chains import build_chains
+from graph import build_graph
+from utils import pretty_print_messages
 
 
 def main():
-    print("Hello from critique-agent!")
-    print(os.environ['OPENAI_API_KEY'])
+    settings = get_settings()
+    generation_chain, reflection_chain = build_chains(settings)
+    graph = build_graph(generation_chain, reflection_chain)
 
+    topic = "Why state machines beat prompt chaining for production LLM agents (with a LangGraph example)."
+
+    input_state = {
+        "messages": [HumanMessage(content=f"Write a LinkedIn post about: {topic}")],
+        "iteration": 0,
+        "max_iterations": settings.max_iterations,
+    }
+
+    response = graph.invoke(input_state)
+
+
+    pretty_print_messages(response["messages"])
+
+    print("\n\n=== FINAL SCORE ===")
+    print(response.get("score"))
+
+    print("\n=== FINAL POST ===")
+    print(response.get("final_post"))
 
 
 if __name__ == "__main__":

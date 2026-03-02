@@ -44,7 +44,7 @@ def should_continue(state: GraphState) -> str:
     iteration = state.get("iteration", 0)
     max_iterations = state.get("max_iterations", 3)
 
-    if score >= 9:
+    if score >= 7:
         return "end"
     if iteration >= max_iterations:
         return "end"
